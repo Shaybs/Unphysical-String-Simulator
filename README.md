@@ -1,2 +1,2 @@
 # Unphysical-String-Simulator
-This may potentially be the first unphysical string simulator in the world. Anyhow, please input both files seperately in the same folder in Matlab and then input values in the GUI that pops up and watch the simulations of different kinds of strings! :)
+This may potentially be the first unphysical string simulator in the world. Anyhow, please copy/add the file, 'UnphysicalGuitarSimulator' and 'ODESolver' to a single Matlab folder while following the MIT License protocal. Further, input values in the GUI that pops up after you run the 'UnphysicalGuitarSimulator' and enjoy the simulations of different kinds of strings (with Guitar-like values)! :)
