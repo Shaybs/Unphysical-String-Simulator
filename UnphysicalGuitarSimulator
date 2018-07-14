@@ -1,0 +1,152 @@
+%{
+                            READ ME
+
+When you run this simulator there are some specifications that must be met
+
+The number of nodes should be divisible by 10
+The sampling rate should be divisible by the number of frame skips
+
+The string type defines its tension, T and initial mass density, Mu as follows
+String 1: T = 517.5N Mu = 0.0030kg/m
+String 2: T = 619.6N Mu = 0.0064kg/m
+String 3: T = 597.7N Mu = 0.0098kg/m
+String 4: T = 451.8N Mu = 0.0132kg/m
+String 5: T = 318.9N Mu = 0.0166kg/m
+String 6: T = 215.6N Mu = 0.0200kg/m
+
+I highly recommend watching a string simulation with the same initial and
+final mass density and the same interaction ratio before changing them.
+
+%}
+
+
+%First we must clear any data that has been stored
+clear; clf
+
+%Here the user can enter his desired specification
+prompt = {'Enter number of nodes (it must be divisible by 10):',...
+    'Enter sampling rate (Hz):','Enter Frame Skips:', 'Enter simulation time (s):',...
+    'Medium (Air = 1, Water = 2, Honey = 3, Liquid Nitrogen = 4, Molten Chocolate = 5)','Do want a simulation video? (Yes = 1, No = 0):',...
+    'Do you want to save an audio file (Yes = 1, No = 0):'};
+dlg_title = 'User Specifications';
+defaultans = {'30','22050','5','1','1','1','1'};
+options.Interpreter = 'tex';
+User = inputdlg(prompt,dlg_title,[1 60; 1 60; 1 60; 1 60; 1 60; 1 60; 1 60],defaultans,options);
+
+%Here the type of string, final mass density and interaction ratio may be
+%chosen
+prompt = {'Enter string type:', 'Enter final mass density value (kg/m):',...
+    'Enter final interaction ratio:','Enter damping ratio \zeta :'};
+dlg_title = 'String Parameters';
+defaultans = {'2','0.0064','1','0.7'};
+options.Interpreter = 'tex';
+Unphysical = inputdlg(prompt,dlg_title,[1 60; 1 60; 1 60; 1 60],defaultans,options);
+
+%maxi must be an even number for plucks
+%It is the number of nodes
+maxi = str2num(User{1});
+%Sampling rate
+Fs = str2num(User{2}); %Hertz
+%Frame skips
+skip = str2num(User{3});
+%Simulation time
+tend = str2num(User{4}); %Seconds
+%Medium choice
+medium = str2num(User{5});
+%Whether simulation video should be displayed or not
+video = str2num(User{6});
+%Whether the audio simulated should be stored or not
+audio = str2num(User{7});
+
+%Now all the physical and unphysical properties of the string will be set
+%String type
+String = str2num(Unphysical{1});
+%Unphysical property of what value the final mass should be, it can be more
+%or less than its initial value
+MuF = str2num(Unphysical{2}); %kg/m
+%Unphysical property, which determines what the final interaction ratio
+%should be, it can be more or less than its initial value
+ccFR = str2num(Unphysical{3}); %ratio
+%Damping ratio
+Z = str2num(Unphysical{4}); %ratio
+
+%The initial conditions of this string has been preset, this is so that a
+%comparison may be drawn to real strings
+maxi1 = 0.2*maxi;
+maxi2 = 0.8*maxi;
+
+%Here I set up the initial pluck of the string
+U1 = linspace(0,0.008,(maxi1));
+U4 = linspace(0.008,0,(maxi2));
+U2 = [U1,U4];
+U3 = zeros(1,maxi);
+
+%The length of the string
+L = 0.63; %Meters
+%Length of a segment
+dx = L/(maxi-1); %Meters
+
+%Start time
+to = 0;
+%The number of steps needed to meet the sampling rate
+tstep = 1/Fs;
+%Set the initial positions and velocities of the string
+u(1,:) = [U2, U3];
+%This breaks down the simulation time to the number of steps needed to meet
+%the desired sampling rate
+tc = to:tstep:tend;
+%u = zeros(Fs+1,(maxi+maxi));
+
+for j = 1:Fs
+    %{
+    Here ODE45 calculates values from tc(j) to tc(j+1), which tstep at a
+    time, to do this ODE45 iterates many times. The 41st frame is stored
+    into the matrix, u. The for loop is there make sure it iterates through
+    this process enough time till our sampling rate requirement is met
+    %}
+    [t,yy]  = ode45(@(t,u)ODESolver(t,u,maxi,String,MuF,ccFR,medium,Z),[tc(j) tc(j+1)],u(j,:));
+    %Stores the 41st row of yy before the next iteration of values from
+    %tc(j) to tc(j+1) are caluculated
+    u(j+1,:) = yy(41,:);
+end
+
+tt = tc(:);
+maxk = size(tt,1);
+
+if video == 1
+    %The length of the  x-axis
+    x = linspace(0,0.63,(maxi+2));
+    %Initialisation of the plot of our simulation
+    figure(1)
+    for k = 1:skip:(maxk-1)
+        plot(x,[0 u(k,1:maxi) 0])
+        %Axis parameters
+        axis([0 0.63 -0.01 0.01])
+        %Time
+        time = k*tstep;
+        %Title along with time
+        title(['String at various times, T = ',num2str(time),'s']);
+        xlabel('Length/m');
+        ylabel('Amplitude/m');
+        %Press Enter to continue simulation
+        pause();
+    end
+end
+
+%This plays and saves the sound produced
+if audio == 1
+    %middle node
+    MN = maxi/2;
+    %Amplify sound as its amplitude is small
+    newu = 100*u(:,MN);
+    %Produce amplified sound
+    sound(newu,Fs);
+    %Store it as a file
+    audiowrite('SoundSim.wav',newu,Fs);
+end
+
+%This plots the amplitude
+figure(2)
+plot(tc,u(:,15))
+ylabel('Amplitude/m');
+xlabel('Time/s')
