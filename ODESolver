@@ -1,0 +1,157 @@
+function ODESolver = ypstringode(t,u,maxi,String,MuF,ccFR,medium,Z)
+
+%Number of steps taken to iterate to our desired final mass density and
+%interaction ratio
+tsteps = 20;
+
+%This calculates the value of z which is needed to determine which row of
+%ccv we want to use
+if t == 0
+    z = 1;
+elseif t > 0
+    prez = t*tsteps;
+    z = ceil(prez);
+end
+
+%The length of the string
+L = 0.63; %Meters
+%Length of a segment
+dx = L/(maxi-1); %Meters
+%Area of room floor
+A = 1;
+%Height of room
+h = 1;
+
+%The initial tensions I have set for each string
+Tr = [517.5 619.6 597.7 451.8 318.9 215.6]; %Tension of String chosen
+%The initial mass densities I have set for each string
+Mu = [0.003 0.0064 0.0098 0.0132 0.0166 0.02]; %kg per meter
+%Fundamental frequency
+ff = sqrt((Tr(String)/Mu(String)))/(2*L); %Hertz
+%Angular velocity
+wn = 2*pi*ff; %Radians per second
+%Spring constant
+k = wn.^2*Mu(String); %Constant
+%Viscous damping ratio
+c = Z*(2*(Mu(String)*k).^(1/2));% ratio
+%Nodes between the two almost infinite masses
+Mmi = ones(1,maxi-2);
+
+%Viscosities
+%Viscosity of air
+Va = 18.6*10.^-6;
+%Viscosity of water
+Vw = 8.94*10.^-4;
+%Viscosity of honey
+Vh = 6;
+%Viscosity of liquid nitrogen
+Vln = 1.58*10.^-4;
+%Viscosity of molten chocolate
+Vmc = 87.5;
+
+%This calculates all the tensions in each segment
+for i = 2:1:maxi
+    T(i-1) = Tr(String) + k*((dx.^2 + (u(i) - u(i-1)).^2).^(1/2) - dx);
+end
+
+%This loop creates a mass density and interaction value matrix that
+%increases or decreases linearly to our desired final value or ratio
+
+
+%This creates a linearly spaced array to our desired final mass density
+Mmd = linspace(Mu(String),MuF,tsteps);
+%This then creates a matrix with linearly decreasing matrix
+Mmk = Mmd(z)*Mmi;
+%The the boundary conditions are added
+Mm = [1000000 Mmk 1000000];
+
+%This creates a linearly spaced array to our desired final interaction
+%ratio
+van = linspace(1,ccFR,tsteps);
+%Then transpose it
+van = van(:);
+
+
+%The interaction value for each tension is then calculated for the
+%given mass matrix we have made
+for i = 2:1:maxi
+    cc(i) = (T(i-1)/Mm(i)/(dx*dx));
+end
+
+%ccv is lineraly spaced ratio matrix is then multiplied by the
+%interaction values for the mass matrix
+ccv = van(z)*cc;
+
+if medium == 1
+for i = 1:1:maxi
+    %Viscous damping ratio of air
+    ca = (Va*A)/h;
+    %Air resistance
+    fricM(i) = -ca*u(maxi+i); 
+    %Internal losses
+    fricI(i) = -c*u(maxi+i);
+end
+end
+
+if medium == 2
+for i = 1:1:maxi
+    %Viscous damping ratio of water
+    cw = (Vw*A)/h;
+    %Water resistance
+    fricM(i) = -cw*u(maxi+i); 
+    %Internal losses
+    fricI(i) = -c*u(maxi+i);
+end
+end
+
+if medium == 3
+for i = 1:1:maxi
+    %Viscous damping ratio of honey    
+    ch = (Vh*A)/h;
+    %Honey resistance
+    fricM(i) = -ch*u(maxi+i); 
+    %Internal losses
+    fricI(i) = -c*u(maxi+i);
+end
+end
+
+if medium == 4
+for i = 1:1:maxi
+    %Viscous damping ratio of liquid nitrogen
+    cln = (Vln*A)/h;
+    %Liquid nitrogen resistance
+    fricM(i) = -cln*u(maxi+i); 
+    %Internal losses
+    fricI(i) = -c*u(maxi+i);
+end
+end
+
+if medium == 5
+for i = 1:1:maxi
+    %Viscous damping ratio of molten chocolate
+    cmc = (Vmc*A)/h;
+    %Molten chocolate resistance
+    fricM(i) = -cmc*u(maxi+i); 
+    %Internal losses
+    fricI(i) = -c*u(maxi+i);
+end
+end
+
+%Velocities
+for i = 1:1:maxi
+    ypstringode(i) = u(maxi+i);
+end
+
+%Acceleration of the first node
+ypstringode(maxi+1) = -ccv(1)*(2*u(1) - u(2)) + fricM(1) + fricI(1);
+
+%Accelerations of the nodes between the first and the last
+for i = 2:1:maxi-1
+    ypstringode(maxi+i) = -ccv(i)*(-u(i-1) + 2*u(i) - u(i+1)) + fricM(i) + fricI(i);
+end
+
+%Acceleration of the last node
+ypstringode(maxi+maxi) = -ccv(maxi)*(2*u(maxi) - u(maxi-1)) + fricM(i) + fricI(maxi);
+
+%Transpose the matrix
+ODESolver = ypstringode(:);
